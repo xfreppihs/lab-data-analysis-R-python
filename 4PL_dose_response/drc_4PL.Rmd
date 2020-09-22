@@ -1,0 +1,136 @@
+---
+title: "Using R package drc for 4PL curve fitting"
+author: "XC"
+date: "9/14/2020"
+output: html_document
+---
+
+Using the *4 parameter logistic* model (**4PL**) to study a dose-response curve and calculate the IC50/ED50/EC50 dose is often cumbersome in Excel or requires using commercial software.
+
+Here shows how to use an R package *drc* to analyze the dose-response curve of the drug CB83 in a clonogenic assay.
+
+The formula of the 4PL is given as 
+$$y=\frac{a-d}{1+(x/c)^b}+d$$
+where y is the response and x is the concentration. The lower asymptote is a, the bottom of the curve or lower plateau (commonly referred to as the min) and the upper asymptote is d, the top of the curve or upper plateau (commonly referred to as the max). The steepness of the linear portion of the curve is described by the slope factor (also called the Hill slope), b . The parameter c is the concentration corresponding to the response midway between a and d.  .
+
+```{r load packages and data, include=FALSE}
+library(drc)
+library(ggplot2)
+
+data<- read.csv(url("https://raw.githubusercontent.com/xfreppihs/lab_data_analysis/master/4PL_dose_response/clonogenic_assay_data.csv"))
+
+```
+
+Let's look at the raw data.
+
+```{r raw data, echo=FALSE, out.width="60%"}
+library(knitr)
+kable(data, align='l',format = "html", table.attr ="style='width:30%;'")
+ggplot(data, aes(x=dose, y=surviving.fraction, shape=cell.line))+
+         xlab(expression(paste("Dose (",mu,"M)")))+
+         ylab("Surviving fraction")+
+         theme(legend.title=element_blank())+
+         geom_point(size=I(3))
+```
+
+There are two options we can choose to fit the curve:
+
+(@) force the min to 0 and max to 1, in this case
+
+```{r model1}
+#fit in a 4PL model with set lower and upper limits
+model1 <- drm(surviving.fraction ~ dose,cell.line,
+             fct = LL.4(names = c("Slope", "Lower", "Upper", "ED50")),
+             data = data,
+             lowerl = c(NA,0,NA,NA), #set the lower limit
+             upperl = c(NA,NA,1,NA)) #set the upper limit
+```
+
+(@) force the min and max to be the same between the two categorical variables (SCC-61 and rSCC-61), in this case
+
+```{r model2}
+#fit in a 4PL model with common lower and upper limits
+model2 <- drm(surviving.fraction ~ dose,cell.line,
+             fct = LL.4(names = c("Slope", "Lower", "Upper", "ED50")),
+             data = data,
+             pmodels = data.frame(cell.line, 1, 1, cell.line)) #common lower and upper limits
+```
+
+But here we don't want to choose neither of those options. So we run another model.
+
+```{r model3}
+model3<- drm(surviving.fraction ~ dose,cell.line,
+             fct = LL.4(names = c("Slope", "Lower", "Upper", "ED50")),
+             data = data)
+```
+
+Quickly check the model summary and plot
+
+```{r model3 summary, echo=FALSE}
+summary(model3)
+plot(model3)
+```
+
+So the ED50 of CB83 is `r model3[["coefficients"]][["ED50:SCC-61"]]` $\mu$M in SCC-61 and `r model3[["coefficients"]][["ED50:rSCC-61"]]` $\mu$M in rSCC-61.
+
+We can also obtain other effective doses using ED()
+
+```{r ED10 and 90}
+ED(model3, c(10, 90), interval = "delta")
+```
+
+The following is to produce more sophisticated figures with *ggplot2*
+
+```{r model prediction, warning=FALSE}
+# make new dose levels to calculate the predicted values based on the model
+newdata <- data.frame(dose = rep(exp(seq(log(0.00001), log(10), length = 100)),2), cell.line = rep(c("SCC-61","rSCC-61"),each = 100))
+
+# predictions and confidence intervals based on model3
+pm <- predict(model3, newdata=newdata, interval = "confidence")
+
+# append predictions to newdata
+newdata$prediction <- pm[,1]
+newdata$prediction.lower <- pm[,2]
+newdata$prediction.upper <- pm[,3]
+```
+
+```{r ggplot with CI}
+# plot with confidence intervals
+ggplot(data, aes(x = dose, y = surviving.fraction,shape = cell.line)) +
+  geom_point() +
+  geom_ribbon(data = newdata, aes(x = dose, y = prediction,
+                                  ymin = prediction.lower,
+                                  ymax = prediction.upper), 
+                                  alpha = 0.2) +
+  geom_line(data = newdata, aes(x = dose, y = prediction)) +
+  xlab(expression(paste("Dose (",mu,"M)"))) +
+  ylab("Surviving fraction") +
+  theme(legend.title=element_blank())
+```
+
+Normally we don't plot that, so
+
+```{r ggplot without CI}
+p <- ggplot(data, aes(x = dose, y = surviving.fraction, shape = cell.line)) +
+  geom_point(size = I(3)) +
+  geom_line(data = newdata, aes(x = dose, y = prediction)) +
+  xlab(expression(paste("Dose (",mu,"M)"))) +
+  ylab("Surviving fraction")
+
+q<- p + theme(legend.position = c(1,1), # place legend in the upper right corner
+    legend.justification = c(1,1),
+    legend.title = element_blank(),
+    legend.background = element_rect(color = "black"), # add a box around the legend
+    # remove panel background and grid
+    panel.grid.major = element_blank(), 
+    panel.grid.minor = element_blank(),
+    panel.background = element_blank(),
+    axis.line = element_line(colour = "black")) # add back axis lines
+q
+```
+
+If we want to use a logarithmic scale for the dose:
+(note the warning message about taking the log of 0)
+```{r ggplot log scale}
+q+scale_x_log10()
+```
