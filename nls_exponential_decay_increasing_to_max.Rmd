@@ -1,0 +1,164 @@
+---
+title: "Using nls function for nonlinear regression"
+subtitle: "*Exponential decay increasing to max*"
+output: html_document
+---
+
+The **nls()** function is a powerful tool for curve fitting nonlinear regression. To demonstrate the usage, here we fit a (pseudo) first-order reaction to a *exponential decay increasing to max* model with the formula:
+$$y=c(1-e^{-kt}), k>0$$
+where c is the upper limit, k is the (pseudo) first-order reaction rate constant. This model will increase very rapidly at first, and then level off to become asymptotic to the upper limit.
+
+### First-order reactions
+
+In a **first-order reaction**, the reaction rate is directly proportional to the concentration of one of the reactants. First-order reactions often have the general form A → products. 
+
+##### The differential representation
+
+Differential rate laws are generally used to describe what is occurring on a molecular level during a reaction, whereas integrated rate laws are used for determining the reaction order and the value of the rate constant from experimental measurements. The differential equation describing first-order kinetics is given below:
+$$Rate=-\frac{d[A]}{dt}=k[A]$$
+The "rate" is the reaction rate (in units of molar/time) and k is the reaction rate coefficient (in units of 1/time). However, the units of k vary for non-first-order reactions. These differential equations are separable, which simplifies the solutions as demonstrated below.
+
+##### The integral representation
+
+Rearrange the differential form to give:
+$$\frac{d[A]}{[A]}=-kdt$$
+Integrate both sides of the equation.
+$$\int_{[A]_0}^{[A]}\frac{1}{[A]}d[A]=\int_{0}^{t}kdt$$
+Remember from calculus that:
+$$\int\frac{1}{x}dx=ln(x)+C$$
+Upon integration,
+$$ln[A]-ln[A]_0=-kt$$
+Rearrange to get:
+$$ln[A]=-kt+ln[A]_0$$
+The equation is a straight line with slope $-k$ and y-intercept $ln[A]_0$.
+
+This means to test if it the reaction is a first-order reaction, plot the natural logarithm of a reactant concentration versus time and see whether the graph is linear. If the graph is linear and has a negative slope, the reaction must be a first-order reaction.
+
+To create another form of the rate law, raise each side of the previous equation to the exponent, e and simplify to get the second form of the rate law:
+$$[A]=[A]_0e^{-kt}$$
+The integrated forms of the rate law can be used to find the population of reactant at any time after the start of the reaction. Plotting ln[A] with respect to time for a first-order reaction gives a straight line with the slope of the line equal to -k.
+
+This general relationship, in which a quantity changes at a rate that depends on its instantaneous value, is said to follow an exponential law. Exponential relations are widespread in science and in many other fields. Consumption of a chemical reactant or the decay of a radioactive isotope follow the exponential decay law. Its inverse, the law of exponential growth, describes the manner in which the money in a continuously-compounding bank account grows with time, or the population growth of a colony of reproducing organisms. The reason that the exponential function $y=e^{x}$  so efficiently describes such changes is that $\frac{dy}{dx}=e^{x}$; that is, $e^{x}$ is its own derivative, making the rate of change of y identical to its value at any point.
+
+### Second-order reactions
+
+The simplest kind of **second-order** reaction is one whose rate is proportional to the square of the concentration of one reactant. These generally have the form 2A → products. A second kind of second-order reaction has a reaction rate that is proportional to the product of the concentrations of two reactants. Such reactions generally have the form A + B → products. An example of the former is a dimerization reaction, in which two smaller molecules, each called a monomer, combine to form a larger molecule (a dimer).
+
+##### Identical reactants
+
+The differential rate law for the simplest second-order reaction in which 2A → products is as follows:
+$$Rate=-\frac{d[A]}{dt}=k[A]^{2}$$
+The separation of concentration and time terms yields
+$$-\frac{d[A]}{[A]^{2}}=kdt$$
+The integration then becomes
+$$-\int_{[A]_0}^{[A]}\frac{1}{[A]^{2}}d[A]=\int_{0}^{t}kdt$$
+And noting that
+$$\int x^{n}dx=\frac{x^{n+1}}{n+1}+C, n\neq-1$$
+the result of the integration is
+$$\frac{1}{[A]}-\frac{1}{[A]_0}=kt$$
+or
+$$\frac{1}{[A]}=\frac{1}{[A]_0}+kt$$
+This means a plot of $1/[A]$ as a function of time should produce a linear plot, the slope of which is $k$ , and the intercept of which is  $1/[A]_0$.
+
+##### Different reactants and pseudo first-order approximation
+
+A second-order reaction with different reactants can be challenging to follow mostly because the two reactants involved must be measured simultaneously. There can be additional complications because certain amounts of each reactant are required to determine the reaction rate, for example, which can make the cost of one's experiment high if one or both of the needed reactants are expensive. To avoid more complicated, expensive experiments and calculations, we can use the pseudo fist-order reaction, which involves treating a second-order reaction like a first-order reaction.
+
+In second-order reactions with two reactant species, A + B → products, the rate of disappearance of A is
+$$-\frac{d[A]}{dt}=k[A][B]$$
+When $[B]_0>>[A]_0$, then $[B]\approx[B]_0$ and is a constant. Integration yields
+$$ln[A]=-[B]kt+ln[A]_0$$
+or
+$$[A]=[A]_0e^{-[B]kt}$$
+This functional form of the decay kinetics is similar to the first-order kinetics and the system is said to operate under pseudo-first-order kinetics. To reach a pseudo-1st-order reaction, we can manipulate the initial concentrations of the reactants. One of the reactants, B, for example, would have a significantly higher concentration, while the other reactant, A, would have a significantly lower concentration. We can then assume that the concentration of reactant B effectively remains constant during the reaction because its consumption is so small that the change in concentration becomes negligible. Because of this assumption, we can multiply the reaction rate, k, with the reactant with assumed constant concentration, B, to create a new rate constant k′=k[B] so that we can re-write the pseudo first-order reaction equation as
+$$[A]=[A]_0e^{-k't}$$
+or
+$$ln[A]=-k't+ln[A]_0$$
+
+### Pseudo first-order reaction example
+
+In this example we are measuring the reaction rate of a novel thiol-reacting compound FDCP and comparing it to a known thiol-reacting compound dimedone. The thiol part of the reaction is from the reduced enzyme AhpC-SH. Instead of measuring the disappearance of the reactant, we are measuring the formation of the product AhpC-S-FDCP or AhpC-S-dimedone. So a *exponential decay increasing to max* model is used here with the formula $y=c(1-e^{-kt}), k>0$.
+
+Load and view data.
+
+```{r load and view data, echo=FALSE, out.width="60%"}
+time<-c(0,15,30,60,120)
+dimedone<-c(0,0.367695417,0.403122793,0.48551231,0.537391821)
+FDCP<-c(0,0.104669418,0.175177001,0.244871673,0.292193131)
+data<-data.frame(time,dimedone,FDCP)
+library(reshape)
+data_melt<-melt(data,id="time")
+library(ggplot2)
+ggplot(data_melt, aes(x=time, y=value*100, shape=variable))+
+         xlab("Time (min)")+
+         ylab("Product formation %")+
+         theme(legend.title=element_blank())+
+         geom_point(size=I(3))
+```
+
+In order to fit the dimedone reaction curve, we need to provide the nls() function with starting estimates of c and k. Starting c is obtained by observing the upper limit. Starting k is estimated by a simple linear model. 
+
+```{r dimedone, results='hide'}
+starting_c1<-0.6 #since the curve is approaching 0.6
+#use lm to get starting k value 
+#transform y = c(1-exp((-k)*x)) into ln(1-y/C)=-k*x
+lm1<-lm(-log(1-dimedone/starting_c1)~time,data=data,na.action= na.omit)
+summary(lm1)
+starting_k1<-coef(lm1)[2]
+#run nls model
+nls1<- nls(dimedone~c*(1-exp((-k)*time)),data=data,
+           start = list(c = starting_c1,k = starting_k1))
+summary(nls1)
+```
+
+Similarly fit the FDCP curve
+
+```{r FDCP, results='hide'}
+starting_c2<-0.3 #as the curve is approaching 0.3
+#use lm to get starting k value 
+#transform y = C(1-exp((-k)*x)) into ln(1-y/C)=-k*x
+lm2<-lm(-log(1-FDCP/starting_c2)~time,data=data,na.action= na.omit)
+summary(lm2)
+starting_k2<-coef(lm2)[2]
+#run nls model
+nls2<- nls(FDCP~c*(1-exp((-k)*time)),data=data,
+           start = list(c = starting_c2,k = starting_k2))
+summary(nls2)
+```
+
+So the pseudo first-order reaction rate k' for dimedone is `r round(coef(nls1)[2],3)` $min^{-1}$ and for FDCP is `r round(coef(nls2)[2],3)` $min^{-1}$.
+
+To create the fitted regression lines
+```{r regression line}
+# create more "time" points for the fitted line
+newdata <- expand.grid(time=seq(0, 120, length=100),
+                       variable = c("dimedone","FDCP"))
+# predict product formation values for each time point based on the models 
+predict1 <- predict(nls1,newdata)
+predict2 <- predict(nls2,newdata)
+# append predictions to newdata
+newdata$prediction <- c(predict1[1:100],predict2[1:100])
+```
+
+Final plot with ggplot2
+```{r ggplot}
+ggplot(data_melt, aes(x = time, y = value*100, shape = variable))+
+  geom_point(size = I(3)) +
+  geom_line(data=newdata, aes(x = time, y = prediction*100), size = I(1)) +
+  xlab("Time (min)") + ylab("Product formation (%)") +
+  coord_cartesian(ylim = c(0, 100)) + #set the viewing area
+  scale_y_continuous(breaks = seq(0, 100, 20))+
+  theme(legend.position = c(1,1),
+        legend.justification = c(1,1),
+        legend.title = element_blank(),
+        legend.text = element_text(size = 12),
+        legend.background = element_rect(color = "black"),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(), 
+        axis.text.x = element_text(size = 12),
+        axis.text.y = element_text(size = 12),
+        axis.title.y = element_text(size = 12),
+        axis.title.x = element_text(size = 12),
+        axis.line = element_line(size = 1))
+```
