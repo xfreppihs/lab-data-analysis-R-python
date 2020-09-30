@@ -1,0 +1,384 @@
+---
+title: "Exploratory Correlation Analysis of Redox Related Metabolites in Erlotinib-treated Head and Neck Cancer Patients"
+output: slidy_presentation
+---
+
+## Data collected on each patient
+
+- Erlotinib, OSI-420 (oxidated form of erlotinib), and ratio of the two
+- Erlotinib dose (smoker 300, non-smoker 150)
+- Free, bound, and total cholesterol before and after erlotinib treatment
+- Various oxisterols before and after erlotinib treatment
+- Cysteine and GSH redox couples before and after erlotinib treatment
+- Tumor decrease in response to the treatment
+- Free, bound, and total cholesterol before and after erlotinib treatment in buccal swab samples
+
+```{r load data, include=FALSE}
+library(readxl)
+library(GGally)
+library(ggplot2)
+url <- "https://github.com/xfreppihs/lab_data_analysis/blob/master/correlation_analysis/erlotinib.xlsx?raw=true"
+destfile <- "erlotinib.xlsx"
+curl::curl_download(url, destfile)
+data <- read_excel(destfile)
+
+#rename column names
+colnames(data)<-c("Patient","OSI","Erlotinib","OtoE","FreeCholB","FreeCholA","TotalCholB","TotalCholA","BoundCholB","BoundCholA","DoseofE","Oxy27OHB","Oxy27OHA","Oxy7aOH27OHB","Oxy7aOH27OHA","Oxy7KetoB","Oxy7KetoA","Oxy25OHB","Oxy25OHA","Oxy24OHB","Oxy24OHA","Oxy7aOH25OHCholB","Oxy7aOH25OHCholA","Oxy7aOHB","Oxy7aOHA","Oxy7bOHB","Oxy7bOHA","CysRtoOB","CysRtoOA","GSHRtoOB","GSHRtoOA","TumorDecrease","BuccalTotalCholA","BuccalTotalCholB","BuccalFreeCholA","BuccalFreeCholB","BuccalBoundCholA","BuccalBoundCholB")
+
+#create factor column for DoseofE
+data$DoseFactor<-factor(data$DoseofE, labels = c("low dose","high dose"))
+```
+
+## erlotinib vs tumor response
+
+```{r erlotinib vs tumor response, echo=FALSE}
+a<-ggpairs(data, columns = c("OSI","Erlotinib","OtoE","TumorDecrease"),
+           switch = "both", #switch labels to bottom and left
+           mapping = aes(color = DoseFactor),
+           upper = list(continuous = wrap("cor",size = 3)),
+           lower = list(continuous = wrap("points",size= 3)),
+           diag = list(continuous = wrap("densityDiag",alpha = 0.5)),
+           columnLabels = c("OSI-420","Erlotinib","Oxidized erlotinib%","Tumor decrease"))
+a
+```
+
+- Tumor decrease is bigger in the high dose group (panel 4.4) and correlates positively with erlotinib (panel 2.4).
+
+## erlotinib vs tumor response
+
+```{r erlotinib, echo=FALSE, fig.show='hold', warning=FALSE, out.width="50%"}
+a[4,2]+xlab(expression(paste("Erlotinib (pg/",mu,"L of plasma)")))+
+  ylab("Percentage of tumor decrease")+
+  theme(legend.title = element_blank(),
+        legend.text = element_text(size = 18),
+        legend.position=c(0.2,0.9),
+        legend.background = element_rect(color = "Black"),
+        panel.background = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.grid.major = element_blank(),
+        axis.line = element_line(color = "Black"),
+        axis.text.x = element_text(color = "Black", size=12),
+        axis.text.y = element_text(color = "Black", size=12),
+        axis.title.y = element_text(size=18),
+        axis.title.x = element_text(size=18))
+
+#Discretize Erlotinib concentration
+data$ErlotinibFactor[data$Erlotinib<2000]<-"low Erl"
+data$ErlotinibFactor[data$Erlotinib>2000]<-"high Erl"
+ggplot(data, aes(x=ErlotinibFactor, y=TumorDecrease))+
+  geom_point(size = 4)+geom_boxplot(alpha=0.5)+
+  ylab("Percentage of tumor decrease")+
+  scale_x_discrete(limits = c("low Erl","high Erl"))+
+  theme(panel.background = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.grid.major = element_blank(),
+        axis.line = element_line(color="Black"),
+        axis.text.x = element_text(color="Black", size=18),
+        axis.text.y = element_text(color="Black", size=12),
+        axis.title.y = element_text(size=18),
+        axis.title.x = element_blank())
+```
+
+```{r erlotinib correlation, include=FALSE}
+#to get p-values and correlation coefficients, use cor.test
+cor.test(data$Erlotinib,data$TumorDecrease)
+data_high_dose<-data[data$DoseofE == 300,]
+data_low_dose<-data[data$DoseofE == 150,]
+cor.test(data_high_dose$Erlotinib,data_high_dose$TumorDecrease)
+cor.test(data_low_dose$Erlotinib,data_low_dose$TumorDecrease)
+
+#is TumorDecrease normally distributed?
+plot(density(data$TumorDecrease))
+qqnorm(data$TumorDecrease)
+shapiro.test(data$TumorDecrease)
+#p = 0.3661 fail to reject null hypothesis that TumorDecrease is normal
+
+#t-test for TumorDecrease between high/low Erl groups
+lowErl = unlist(data[data$ErlotinibFactor == "low Erl","TumorDecrease"])
+highErl = unlist(data[data$ErlotinibFactor == "high Erl","TumorDecrease"])
+t.test(lowErl,highErl)
+
+#Mann-Whitney U test
+wilcox.test(lowErl,highErl)
+```
+
+(left) Since tumor response correlates with erlotinib, single out erlotinib vs tumor pair to plot. The correlation coefficient is `r round(cor.test(data$Erlotinib,data$TumorDecrease)[["estimate"]][["cor"]],3)`, with `r round(cor.test(data_high_dose$Erlotinib,data_high_dose$TumorDecrease)[["estimate"]][["cor"]],3)` for the high dose group and `r round(cor.test(data_low_dose$Erlotinib,data_low_dose$TumorDecrease)[["estimate"]][["cor"]],3)` for the low dose group.
+
+(right) Discretize erlotinib concentration into two categories (less or greater than 2000). It is clear that the tumor decrease is higher in the high erlotinib group. p-value = `r round(t.test(lowErl,highErl)[["p.value"]],3)` by t-test, p-value = `r round(wilcox.test(lowErl,highErl)[["p.value"]],3)` by Mann-Whitney U test.
+
+## cholesterol (before) vs tumor response
+
+```{r cholesterol before vs tumor response, echo=FALSE}
+ggpairs(data, columns = c("FreeCholB","TotalCholB","BoundCholB","TumorDecrease"),
+        switch = "both",
+        mapping = aes(color = DoseFactor),
+        upper = list(continuous = wrap("cor",size = 3)),
+        lower=list(continuous = wrap("points",size= 3)),
+        diag = list(continuous = wrap("densityDiag",alpha = 0.5)),
+        columnLabels = c("Free cholesterol","Total cholesterol","Bound cholesterol","Tumor decrease"))
+```
+
+- Tumor decrease negatively correlates with bound and total cholesterol in patients receiving high dose treatment (panel 2.4, 3.4): maybe related to smoking? This is before treatment, certainly has nothing to do with erlotinib dose.
+
+## cholesterol (after) vs tumor response
+
+```{r cholesterol after vs tumor response, echo=FALSE}
+ggpairs(data, columns = c("FreeCholA","TotalCholA","BoundCholA","TumorDecrease"),
+        switch = "both",
+        mapping = aes(color = DoseFactor),
+        upper = list(continuous = wrap("cor",size = 3)),
+        lower=list(continuous = wrap("points",size= 3)),
+        diag = list(continuous = wrap("densityDiag",alpha = 0.5)),
+        columnLabels = c("Free cholesterol","Total cholesterol","Bound cholesterol","Tumor decrease"))
+```
+
+- The effect described in previous page is absent after treatment.
+
+## oxysterols (before) vs tumor response
+
+```{r oxysterol before vs tumor response, echo=FALSE}
+ggpairs(data, columns = c("Oxy27OHB","Oxy7aOH27OHB","Oxy7aOHB","TumorDecrease"),
+        switch = "both",
+        mapping = aes(color = DoseFactor),
+        upper = list(continuous = wrap("cor",size = 3)),
+        lower=list(continuous = wrap("points",size= 3)),
+        diag = list(continuous = wrap("densityDiag",alpha = 0.5)),
+        columnLabels = c("27-OH","7a-OH-27-OH","7a-OH",
+                         "Tumor decrease"))
+```
+
+- 7a-OH-27-OH is a really good indicator of tumor response (panel 2.4), so is 27-OH in low dose patients (non-smoker)(panel 1.4).
+
+## oxysterols (after) vs tumor response
+
+```{r oxysterol after vs tumor response, echo=FALSE}
+ggpairs(data, columns = c("Oxy27OHA","Oxy7aOH27OHA","Oxy7aOHA","TumorDecrease"),
+        switch = "both",
+        mapping = aes(color = DoseFactor),
+        upper = list(continuous = wrap("cor",size = 3)),
+        lower=list(continuous = wrap("points",size= 3)),
+        diag = list(continuous = wrap("densityDiag",alpha = 0.5)),
+        columnLabels = c("27-OH","7a-OH-27-OH","7a-OH","Tumor decrease"))
+```
+
+- After treatment, 7a-OH-27-OH is positively, 7a-OH is negatively correlated with tumor decrease in high dose patients (panel 3.4, 4.4). 
+
+## redox pairs (before) vs tumor response
+
+```{r redox pairs before vs tumor response, echo=FALSE}
+ggpairs(data, columns = c("CysRtoOB","GSHRtoOB","TumorDecrease"),
+        switch = "both",
+        mapping = aes(color = DoseFactor),
+        upper = list(continuous = wrap("cor",size = 3)),
+        lower=list(continuous = wrap("points",size= 3)),
+        diag = list(continuous = wrap("densityDiag",alpha = 0.5)),
+        columnLabels = c("Cys+MSBT/Cystine","GSH+MSBT/GSSG",
+                         "Tumor decrease"))
+```
+
+- Smokers have higher Cys+MSBT/Cystine ratio (panel 1.1).
+
+## redox pairs (after) vs tumor response
+
+```{r redox pairs after vs tumor response, echo=FALSE}
+ggpairs(data, columns = c("CysRtoOA","GSHRtoOA","TumorDecrease"),
+        switch = "both",
+        mapping = aes(color = DoseFactor),
+        upper = list(continuous = wrap("cor",size = 3)),
+        lower=list(continuous = wrap("points",size= 3)),
+        diag = list(continuous = wrap("densityDiag",alpha = 0.5)),
+        columnLabels = c("Cys+MSBT/Cystine","GSH+MSBT/GSSG",
+                         "Tumor decrease"))
+```
+
+- After the treatment, smokers still have higher Cys+MSBT/Cystine ratio (panel 1.1).
+
+```{r remove low GSSG, include=FALSE}
+#Remove some low GSSG peaks
+GSHRtoOBnew<-data$GSHRtoOB
+GSHRtoOAnew<-data$GSHRtoOA
+GSHRtoOBnew[c(3,16)]<-NA
+GSHRtoOAnew[c(3,16)]<-NA
+data<-cbind(data,GSHRtoOBnew,GSHRtoOAnew)
+```
+
+## redox pairs (before) vs tumor response, low GSSG points removed
+
+```{r new redox pairs before vs tumor response, echo=FALSE, warning=FALSE}
+#plot redox pairs again
+ggpairs(data, columns = c("CysRtoOB","GSHRtoOBnew","TumorDecrease"), 
+        switch = "both", 
+        mapping = aes(color = DoseFactor),
+        upper = list(continuous = wrap("cor",size = 3)),
+        lower=list(continuous = wrap("points",size= 3)),
+        diag = list(continuous = wrap("densityDiag",alpha = 0.5)),
+        columnLabels = c("Cys+MSBT/Cystine","GSH+MSBT/GSSG",
+                         "Tumor decrease"))
+```
+
+- Removed a few really low GSSG data points.
+
+## redox pairs (after) vs tumor response, low GSSG points removed
+
+```{r new redox pairs after vs tumor response, echo=FALSE, warning=FALSE}
+ggpairs(data, columns = c("CysRtoOA","GSHRtoOAnew","TumorDecrease"), 
+        switch = "both",
+        mapping = aes(color = DoseFactor),
+        upper = list(continuous = wrap("cor",size = 3)),
+        lower=list(continuous = wrap("points",size= 3)),
+        diag = list(continuous = wrap("densityDiag",alpha = 0.5)),
+        columnLabels = c("Cys+MSBT/Cystine","GSH+MSBT/GSSG",
+                         "Tumor decrease"))
+```
+
+- Tumor response is inversely correlated with GSH+MSBT/GSSG ratio post-treatment especially in the high erlotinib dose subgroup (panel 2.3). 
+
+## Cys redox vs erlotinib dose (smoking)
+
+```{r cys redox, echo=FALSE, fig.show='hold', warning=FALSE, out.width="50%"}
+ggplot(data, aes(x=DoseFactor,y=CysRtoOB))+
+  geom_point(size = 5)+geom_boxplot(alpha=0.5)+
+  ylab("Cys+MSBT/Cystine (before treatment)")+
+  theme(panel.background = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.grid.major = element_blank(),
+        axis.line = element_line(color = "Black"),
+        axis.text.x = element_text(color = "Black", size=18),
+        axis.text.y = element_text(color = "Black", size=12),
+        axis.title.y = element_text(size=18),
+        axis.title.x = element_blank())
+ggplot(data, aes(x=DoseFactor,y=CysRtoOA))+
+  geom_point(size = 5)+geom_boxplot(alpha=0.5)+
+  ylab("Cys+MSBT/Cystine (after treatment)")+
+  theme(panel.background = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.grid.major = element_blank(),
+        axis.line = element_line(color = "Black"),
+        axis.text.x = element_text(color="Black", size=18),
+        axis.text.y = element_text(color="Black", size=12),
+        axis.title.y = element_text(size=18),
+        axis.title.x = element_blank())
+```
+
+```{r Cys stats, include=FALSE}
+#are Cys redox values normally distributed?
+plot(density(data$CysRtoOB))
+plot(density(data$CysRtoOA))
+qqnorm(data$CysRtoOB)
+qqnorm(data$CysRtoOA)
+shapiro.test(data$CysRtoOB)
+shapiro.test(data$CysRtoOA)
+#Assume normality
+
+#t-test for Cys redox values between high/low dose groups
+low_dose_pre = unlist(data[data$DoseFactor == "low dose","CysRtoOB"])
+low_dose_post = unlist(data[data$DoseFactor == "low dose","CysRtoOA"])
+high_dose_pre = unlist(data[data$DoseFactor == "high dose","CysRtoOB"])
+high_dose_post = unlist(data[data$DoseFactor == "high dose","CysRtoOA"])
+t.test(low_dose_pre,high_dose_pre)
+t.test(low_dose_post,high_dose_post)
+
+#Mann-Whitney U test
+wilcox.test(low_dose_pre,high_dose_pre)
+wilcox.test(low_dose_post,high_dose_post)
+```
+
+- High dose patients (smokers) have higher reduced to oxidized cysteine ratio pre- and post- treatment. (left, before treatment) p-value = `r round(t.test(low_dose_pre,high_dose_pre)[["p.value"]],3)` by t-test, p-value = `r round(wilcox.test(low_dose_pre,high_dose_pre)[["p.value"]],3)` by Mann-Whitney U test. (right, after treatment) p-value = `r round(t.test(low_dose_post,high_dose_post)[["p.value"]],3)` by t-test, p-value = `r round(wilcox.test(low_dose_post,high_dose_post)[["p.value"]],3)` by Mann-Whitney U test.
+
+## Buccal cholesterol (before) vs tumor response
+
+```{r buccal cholesterol before vs tumor response, echo=FALSE, warning=FALSE}
+ggpairs(data, columns = c("BuccalFreeCholB","BuccalTotalCholB","BuccalBoundCholB","TumorDecrease"),
+        switch = "both",
+        mapping = aes(color = DoseFactor),
+        upper = list(continuous = wrap("cor",size = 3)),
+        lower=list(continuous = wrap("points",size= 3)),
+        diag = list(continuous = wrap("densityDiag",alpha = 0.5)),
+        columnLabels = c("Free cholesterol","Total cholesterol","Bound cholesterol", "Tumor decrease"))
+```
+
+## Buccal cholesterol (after) vs tumor response
+
+```{r buccal cholesterol after vs tumor response, echo=FALSE, warning=FALSE}
+ggpairs(data, columns = c("BuccalFreeCholA","BuccalTotalCholA","BuccalBoundCholA","TumorDecrease"),
+        switch = "both",
+        mapping = aes(color = DoseFactor),
+        upper = list(continuous = wrap("cor",size = 3)),
+        lower=list(continuous = wrap("points",size= 3)),
+        diag = list(continuous = wrap("densityDiag",alpha = 0.5)),
+        columnLabels = c("Free cholesterol","Total cholesterol","Bound cholesterol", "Tumor decrease"))
+```
+
+- Total and bound cholesterol in post-treatment buccal swab samples correlates with tumor decrease especially in the high erlotinib dose group (panel 2.4, 3.4). Keep in mind that bound cholesterol has some negative values (from total - free), so the accuracy of measurement is questionable.
+
+## plasma cholesterol before and after treatment
+
+```{r cholesterol, echo=FALSE}
+#plot for each patients the plasma cholesterol (free, bound, and total) before and after treatment
+#subset plasma cholesterol data, melt it from wide to long
+library(reshape2)
+data_pchol_wide<-data[,c(1,5:10)]
+data_pchol_long<-melt(data_pchol_wide, id.vars=c("Patient"))
+
+data_pchol_long$time<-NA #creating a new column for time
+data_pchol_long$time[grep("B$",data_pchol_long$variable)]<-"Before" #anything that ends with B means before treatment
+data_pchol_long$time[grep("A$",data_pchol_long$variable)]<-"After"
+
+data_pchol_long$cholesterol<-NA #creating a new column for cholesterol type
+data_pchol_long$cholesterol[grep("Free",data_pchol_long$variable)]<-"Free"
+data_pchol_long$cholesterol[grep("Bound",data_pchol_long$variable)]<-"Bound" 
+data_pchol_long$cholesterol[grep("Total",data_pchol_long$variable)]<-"Total" 
+
+ggplot(data_pchol_long,aes(x=time,y=value))+
+  geom_line(aes(group=Patient,color=as.character(Patient)),size=1)+
+  facet_grid(.~cholesterol)+labs(color = "Patient")+
+  scale_x_discrete(limits=c("Before","After"))+ #changing the order of a discrete x scale
+  ylab(expression(paste("Cholesterol (",mu,"g/",mu,"L of plasma)")))+
+  theme(panel.background = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.grid.major = element_blank(),
+        legend.background = element_rect(color = "black"),#legend border
+        axis.line = element_line(color = "Black"),#axis line
+        axis.text.x = element_text(color="Black", size=10),
+        axis.text.y = element_text(color="Black", angle = 90, hjust=0.5,
+                                   size=10),
+        axis.title.y = element_text(size=10),
+        axis.title.x = element_blank())
+```
+
+- Interestingly, plasma cholesterol seems to be increased in most patients after treatment.
+
+## Multiple linear regression - single predictor
+We want to build a model using multiple variables to predict tumor response. For model selection, here we use the forward selection with adjusted R^2 method. We choose single predictors from the plasma samples before the treatment.
+
+- erlotinib adjusted R^2 = `r summary(lm(TumorDecrease~Erlotinib,data))$adj.r.squared`
+- total cholesterol adjusted R^2 = `r summary(lm(TumorDecrease~TotalCholB,data))$adj.r.squared`
+- 7a-OH-27-OH adjusted R^2 = `r summary(lm(TumorDecrease~Oxy7aOH27OHB,data))$adj.r.squared`
+- GSH-MSBT/GSSG ratio adjusted R^2 = `r summary(lm(TumorDecrease~GSHRtoOBnew,data))$adj.r.squared`
+
+So first we pick 7a-OH-27-OH.
+
+## Multiple linear regression - adding second predictor
+
+- 7a-OH-27-OH + erlotinib adjusted R^2 = `r summary(lm(TumorDecrease~Oxy7aOH27OHB+Erlotinib,data))$adj.r.squared`
+- 7a-OH-27-OH + total cholesterol adjusted R^2 = `r summary(lm(TumorDecrease~Oxy7aOH27OHB+TotalCholB,data))$adj.r.squared`
+- 7a-OH-27-OH + GSH-MSBT/GSSG ratio adjusted R^2 = `r summary(lm(TumorDecrease~Oxy7aOH27OHB+GSHRtoOBnew,data))$adj.r.squared`
+
+So we go with 7a-OH-27-OH + erlotinib.
+
+## Multiple linear regression - adding third predictor
+
+- 7a-OH-27-OH + erlotinib + total cholesterol adjusted R^2 = `r summary(lm(TumorDecrease~Oxy7aOH27OHB+Erlotinib+TotalCholB,data))$adj.r.squared`
+- 7a-OH-27-OH + erlotinib + GSH-MSBT/GSSG ratio adjusted R^2 = `r summary(lm(TumorDecrease~Oxy7aOH27OHB+Erlotinib+GSHRtoOBnew,data))$adj.r.squared`
+
+So we go with 7a-OH-27-OH + erlotinib + GSH-MSBT/GSSG ratio.
+
+## Multiple linear regression - final model
+
+- 7a-OH-27-OH + erlotinib + GSH-MSBT/GSSG ratio + total cholesterol adjusted R^2 = `r summary(lm(TumorDecrease~Oxy7aOH27OHB+Erlotinib+GSHRtoOBnew+TotalCholB,data))$adj.r.squared`
+- Adding total cholesterol doesn't help, so we drop it to get the final model.
+
+```{r mlr, echo=FALSE}
+mlr<-lm(TumorDecrease~Oxy7aOH27OHB+Erlotinib+GSHRtoOBnew,data)
+summary(mlr)
+```
