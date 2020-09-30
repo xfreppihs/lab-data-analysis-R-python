@@ -1,0 +1,190 @@
+---
+title: "mouse tumor xenograft data"
+output: html_document
+---
+
+```{r B1_B9, include=FALSE}
+library(readxl)
+library(ggplot2)
+library(reshape2)
+url <- "https://github.com/xfreppihs/lab_data_analysis/blob/master/mouse_tumor_xenograft/B1_B9.xlsx?raw=true"
+destfile <- "B1_B9.xlsx"
+curl::curl_download(url, destfile)
+data1 <- read_excel(destfile)
+
+#subsetting for only IVIS data
+IVISdata <- data1[data1$date %in% c(42901,42905,42908,42912,42915), c(1,2,4,5)]
+
+#remove NA entries
+IVISdata <- IVISdata[complete.cases(IVISdata),]
+
+#fix colume names
+colnames(IVISdata)[1] <- "ID"
+colnames(IVISdata)[3] <- "Left_total_flux"
+colnames(IVISdata)[4] <- "Right_total_flux"
+
+#convert to numerics
+IVISdata$Left_total_flux <- as.numeric(IVISdata$Left_total_flux)
+IVISdata$Right_total_flux <- as.numeric(IVISdata$Right_total_flux)
+
+#Left total flux alone
+a <- ggplot(IVISdata,aes(x = date, y = Left_total_flux))+
+  geom_line(aes(group = ID, color = ID))
+a
+
+#melt dataframe to long form
+melt_IVISdata <- melt(IVISdata, id = c("ID","date"))
+
+#create labels for facet_grid labels
+label1 <- c("Left_total_flux" = "Left tumor","Right_total_flux" = "Right tumor")
+
+#compare left and right total flux side by side
+b <- ggplot(melt_IVISdata,aes(x = date, y = value, color = ID)) +
+  geom_line(aes(group = ID, color = ID),size = 1) +
+  facet_grid(.~variable,labeller = labeller(variable = label1))
+d <- b + labs(color = "Mouse") + ylab("Total flux (p/s)") +
+  scale_x_discrete(labels = c("Day 3", "Day 7", "Day 10", "Day 14", "Day 17")) +
+  theme(panel.background = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.grid.major = element_blank(),
+        axis.line = element_line(colour = "black"),#axis line
+        legend.background = element_rect(color = "black"),#legend border
+        axis.text.x = element_text(color = "Black", size = 10),
+        axis.text.y = element_text(color = "Black", angle = 90, hjust = 0.5, size = 10),
+        axis.title.y = element_text(size = 10),
+        axis.title.x = element_blank())
+
+#subsetting for only volume measurement
+vdata <- data1[data1$date %in% c(42908,42912,42915),c(1,2,8,11)]
+
+#remove NA entries
+vdata <- vdata[complete.cases(vdata),]
+
+#fix colume names
+colnames(vdata)[1] <- "ID"
+colnames(vdata)[3] <- "Left_volume"
+colnames(vdata)[4] <- "Right_volume"
+
+#convert to numerics
+vdata$Left_volume <- as.numeric(vdata$Left_volume)
+vdata$Right_volume <- as.numeric(vdata$Right_volume)
+
+melt_vdata <- melt(vdata, id = c("ID","date"))
+label2 <- c(Left_volume = "Left tumor",Right_volume = "Right tumor")
+c <- ggplot(melt_vdata,aes(x = date,y = value,color = ID)) +
+  geom_line(aes(group = ID),size = 1) +
+  facet_grid(.~variable, labeller = labeller(variable = label2))
+e <- c + labs(color = "Mouse") + ylab("Tumor volume (mm^3)")+
+  scale_x_discrete(labels = c("Day 10", "Day 14", "Day 17"))+
+  theme(panel.background = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.grid.major = element_blank(),
+        axis.line = element_line(color = "black"),#axis line
+        legend.background = element_rect(color = "black"),#legend border
+        axis.text.x = element_text(color = "Black", size = 10),
+        axis.text.y = element_text(color = "Black", size = 10), 
+        axis.title.y = element_text(size = 10),
+        axis.title.x = element_blank())
+
+# Multiple plot function
+# ggplot objects can be passed in ..., or to plotlist (as a list of ggplot objects)
+# - cols:   Number of columns in layout
+# - layout: A matrix specifying the layout. If present, 'cols' is ignored.
+# If the layout is something like matrix(c(1,2,3,3), nrow=2, byrow=TRUE),
+# then plot 1 will go in the upper left, 2 will go in the upper right, and
+# 3 will go all the way across the bottom.
+
+multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
+  library(grid)
+  
+  # Make a list from the ... arguments and plotlist
+  plots <- c(list(...), plotlist)
+  
+  numPlots = length(plots)
+  
+  # If layout is NULL, then use 'cols' to determine layout
+  if (is.null(layout)) {
+    # Make the panel
+    # ncol: Number of columns of plots
+    # nrow: Number of rows needed, calculated from # of cols
+    layout <- matrix(seq(1, cols * ceiling(numPlots/cols)),
+                     ncol = cols, nrow = ceiling(numPlots/cols))
+  }
+  
+  if (numPlots==1) {
+    print(plots[[1]])
+    
+  } else {
+    # Set up the page
+    grid.newpage()
+    pushViewport(viewport(layout = grid.layout(nrow(layout), ncol(layout))))
+    
+    # Make each plot, in the correct location
+    for (i in 1:numPlots) {
+      # Get the i,j matrix positions of the regions that contain this subplot
+      matchidx <- as.data.frame(which(layout == i, arr.ind = TRUE))
+      
+      print(plots[[i]], vp = viewport(layout.pos.row = matchidx$row,
+                                      layout.pos.col = matchidx$col))
+    }
+  }
+}
+```
+
+1. time course data on tumor growth
+
+```{r, echo=FALSE}
+multiplot(d,e)
+```
+
+***
+2. tumor volume data on each cell line
+
+```{r B10_B74, echo=FALSE, message=FALSE}
+library(readxl)
+library(ggplot2)
+url <- "https://github.com/xfreppihs/lab_data_analysis/blob/master/mouse_tumor_xenograft/B10_B74.xlsx?raw=true"
+destfile <- "B10_B74.xlsx"
+curl::curl_download(url, destfile)
+data2 <- read_excel(destfile)
+
+data2$cell_line<-factor(data2$cell_line,levels=c("SCC61","rSCC61"))#reorder the factor levels
+f<-ggplot(data2, aes(x=volume))+
+   geom_histogram(aes(y=..density..),binwidth = 50, fill="white", color="black")+
+   geom_density(alpha=0.2,fill="pink",size = 1)+
+   facet_grid(cell_line ~.)+
+   theme(panel.background = element_blank(),
+         panel.grid.minor=element_blank(),
+         panel.grid.major=element_blank(),
+         axis.line = element_line(color = "black"),#axis line
+         axis.text.x = element_text(size=12,color="black"),
+         axis.text.y = element_text(angle = 0,size=12,color="black"),
+         axis.title.y=element_text(size=12),
+         axis.title.x=element_text(size=12),
+         strip.text.y=element_text(size=12)) #facet grid labeller size
+
+# Find the mean of each cell line
+library(plyr)
+mdata <- ddply(data2, "cell_line", summarise, volume.mean=mean(volume))
+f+geom_vline(data=mdata,aes(xintercept=volume.mean),
+             linetype="dashed",size=2,color="red")
+
+#dot plot for each group
+data2$group<-factor(data2$group)
+ggplot(data2,aes(x=group,y=volume,fill=cell_line))+
+  geom_dotplot(position=position_dodge(0.4),binaxis = 'y', stackdir='center')+
+  scale_x_discrete(labels=c("1"="5 min","2"="30 min","3"="60 min", "4"="90 min", "5"="120 min"))+
+  ylab("volume (mm3)")+
+  theme(panel.background = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.grid.major = element_blank(),
+        axis.line = element_line(colour = "black"),#axis line
+        axis.text.x = element_text(size=12,color="black"),
+        axis.text.y = element_text(angle = 0,size=12,color="black"),
+        axis.title.y=element_text(size=12),
+        axis.title.x=element_text(size=12),
+        legend.title=element_blank(),
+        legend.text=element_text(size=12),
+        legend.justification=c(1,1),
+        legend.position=c(1,1))
+```
