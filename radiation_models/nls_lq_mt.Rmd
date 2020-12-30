@@ -1,6 +1,6 @@
 ---
 title: "Using nls function for nonlinear regression"
-subtitle: "*modeling cell survical curve after radiation*"
+subtitle: "*modeling cell survival curve after radiation*"
 output: html_document
 ---
 We can use the Poisson distribution to model radiation hit in target cells.
